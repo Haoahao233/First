@@ -1,0 +1,1065 @@
+C51 COMPILER V9.00   MAIN                                                                  09/13/2017 20:47:03 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN ..\out\main.obj
+COMPILER INVOKED BY: C:\Keil_v4\C51\BIN\C51.EXE ..\user\main.C BROWSE DEBUG OBJECTEXTEND PRINT(..\listing\main.lst) OBJE
+                    -CT(..\out\main.obj)
+
+line level    source
+
+   1          
+   2          #include <reg52.h>
+   3          #include <intrins.h>
+   4          #define uint unsigned int
+   5          #define uchar unsigned char
+   6          #define Row0 0x80                       //µÚÒ»ÐÐµÄ³õÊ¼Î»ÖÃ
+   7          #define Row1 0x80+0x44          //µÚ¶þÐÐ³õÊ¼Î»ÖÃ
+   8          
+   9          
+  10          sbit wr = P1^4;
+  11          sbit rs = P1^3;
+  12          sbit en = P1^5;                                           
+  13          sbit IO = P2^4;                         // 7  P1.0
+  14          sbit RST = P2^3;                        //Ê±ÖÓ 5  P1.2
+  15          sbit SCLK = P2^5;                       // 6  P1.1
+  16          
+  17          
+  18          
+  19          sbit sda=P2^4;                          //IO¿Ú¶¨Òå
+  20          sbit scl=P2^5;
+  21          
+  22          
+  23          sbit K1 = P3^4;
+  24          sbit K2 = P3^5;
+  25          sbit K3 = P3^6; 
+  26          sbit K4 = P3^7;                                                   
+  27          sbit ACC0 = ACC^0;
+  28          sbit ACC7 = ACC^7;
+  29          sbit beep = P2^2;       
+  30          sbit DS_Data = P2^0;
+  31          int cnt = 0;
+  32          uchar a, miao, shi, fen, ri, yue, nian, week;
+  33          uchar flag, temp, K1_CNT;
+  34          uchar code tab1[] = {"20  -  -      "};
+  35          uchar code tab2[] = {"  :  :  "};
+  36          uchar code nothing[] = {"Nothing"};
+  37          uchar code clear[] ={"Clear!"};
+  38          uchar K4cnt = 0;
+  39          uchar count;
+  40          uchar warning0 = 0;uchar warning1 = 0;
+  41          uchar warningflag;
+  42          int tem;
+  43          void delay(uint xms)//ÑÓÊ±º¯Êý
+  44          {
+  45   1              uint x, y;
+  46   1      
+  47   1              for(x=xms; x>0; x--)
+  48   1                      for(y=110; y>0; y--);
+  49   1      }
+  50          
+  51          void DelayMs(unsigned int i)
+  52          {
+  53   1              unsigned int j,k;
+  54   1      
+C51 COMPILER V9.00   MAIN                                                                  09/13/2017 20:47:03 PAGE 2   
+
+  55   1              for(j=i; j>0; j--)
+  56   1                      for(k=114; k>0; k--);
+  57   1      }
+  58          
+  59          void nop()
+  60          {
+  61   1              _nop_();
+  62   1              _nop_();
+  63   1      }
+  64          
+  65          
+  66          /////////24C02¶ÁÐ´Çý¶¯³ÌÐò////////////////////
+  67          void delay1(unsigned int m)
+  68          {       unsigned int n;
+  69   1              for(n=0;n<m;n++);
+  70   1      }
+  71          
+  72          void init()  //24c02³õÊ¼»¯×Ó³ÌÐò
+  73          {
+  74   1              scl=1;
+  75   1              nop();
+  76   1              sda=1;
+  77   1              nop();
+  78   1      }
+  79          
+  80          void start()        //Æô¶¯I2C×ÜÏß
+  81          {
+  82   1              sda=1;
+  83   1              nop();
+  84   1              scl=1;
+  85   1              nop();
+  86   1              sda=0;
+  87   1              nop();
+  88   1              scl=0;
+  89   1              nop();
+  90   1      }
+  91          
+  92          void stop()         //Í£Ö¹I2C×ÜÏß
+  93          {
+  94   1              sda=0;
+  95   1              nop();
+  96   1              scl=1;
+  97   1              nop();
+  98   1              sda=1;
+  99   1              nop();
+ 100   1      }
+ 101          
+ 102          void writebyte(unsigned char j)  //Ð´Ò»¸ö×Ö½Ú
+ 103          {
+ 104   1              unsigned char i,temp;
+ 105   1              temp=j;
+ 106   1              for (i=0;i<8;i++)
+ 107   1         {
+ 108   2                 temp=temp<<1;
+ 109   2                 scl=0;
+ 110   2                 nop();
+ 111   2                 sda=CY;              //temp×óÒÆÊ±£¬ÒÆ³öµÄÖµ·ÅÈëÁËCYÖÐ
+ 112   2                 nop();
+ 113   2                 scl=1;               //´ýsdaÏßÉÏµÄÊý¾ÝÎÈ¶¨ºó£¬½«sclÀ­¸ß
+ 114   2                 nop();
+ 115   2         }
+ 116   1         scl=0;
+C51 COMPILER V9.00   MAIN                                                                  09/13/2017 20:47:03 PAGE 3   
+
+ 117   1         nop();
+ 118   1         sda=1;
+ 119   1         nop();
+ 120   1      }
+ 121          
+ 122          unsigned char readbyte()   //¶ÁÒ»¸ö×Ö½Ú
+ 123          {
+ 124   1         unsigned char i,j,k=0;
+ 125   1         scl=0; nop(); sda=1;
+ 126   1         for (i=0;i<8;i++)
+ 127   1         {  
+ 128   2                      nop(); scl=1; nop();
+ 129   2              if(sda==1) 
+ 130   2                      j=1;
+ 131   2              else
+ 132   2                      j=0;
+ 133   2              k=(k<<1)|j;
+ 134   2                      scl=0;
+ 135   2              }
+ 136   1              nop();
+ 137   1              return(k);
+ 138   1      }
+ 139          
+ 140          void clock()         //I2C×ÜÏßÊ±ÖÓ
+ 141          {
+ 142   1         unsigned char i=0;
+ 143   1         scl=1;
+ 144   1         nop();
+ 145   1         while((sda==1)&&(i<255))
+ 146   1                i++;
+ 147   1         scl=0;
+ 148   1         nop();
+ 149   1      }
+ 150          
+ 151          ////////´Ó24c02µÄµØÖ·addressÖÐ¶ÁÈ¡Ò»¸ö×Ö½ÚÊý¾Ý/////
+ 152          unsigned char read24c02(unsigned char address)
+ 153          {
+ 154   1         unsigned char i;
+ 155   1         start();
+ 156   1         writebyte(0xa0);
+ 157   1         clock();
+ 158   1         writebyte(address);
+ 159   1         clock();
+ 160   1         start();
+ 161   1         writebyte(0xa1);
+ 162   1         clock();
+ 163   1         i=readbyte();
+ 164   1         stop();
+ 165   1         delay1(100);
+ 166   1         return(i);
+ 167   1      }
+ 168          
+ 169          //////Ïò24c02µÄaddressµØÖ·ÖÐÐ´ÈëÒ»×Ö½ÚÊý¾Ýinfo/////
+ 170          void write24c02(unsigned char address,unsigned char info)
+ 171          {
+ 172   1         start();
+ 173   1         writebyte(0xa0);
+ 174   1         clock();
+ 175   1         writebyte(address);
+ 176   1         clock();
+ 177   1         writebyte(info);
+ 178   1         clock();
+C51 COMPILER V9.00   MAIN                                                                  09/13/2017 20:47:03 PAGE 4   
+
+ 179   1         stop();
+ 180   1         delay1(5000); //Õâ¸öÑÓÊ±Ò»¶¨Òª×ã¹»³¤£¬·ñÔò»á³ö´í¡£ÒòÎª24c02ÔÚ´ÓsdaÉÏÈ¡µÃÊý¾Ýºó£¬»¹ÐèÒªÒ»¶¨Ê±¼äµÄÉÕÂ¼¹ý³
+             -Ì¡£
+ 181   1      }
+ 182          /*
+ 183          * ¹¦  ÄÜ£ºDS18B20 ¸´Î»
+ 184          * ²Î  Êý£ºÎÞ
+ 185          * ·µ»ØÖµ£ºÎÞ
+ 186          */
+ 187          void DS18B20_Reset(void)
+ 188          {
+ 189   1              unsigned int i;
+ 190   1      
+ 191   1              DS_Data = 0;
+ 192   1              i = 103;
+ 193   1              while(i>0)      i--;
+ 194   1      
+ 195   1              DS_Data = 1;
+ 196   1              i = 4;
+ 197   1              while(i>0)      i--;
+ 198   1      }
+ 199          
+ 200          /*
+ 201          * ¹¦  ÄÜ£ºDS18B20 ¶ÁÈ¡Ò»Î»Êý¾Ý
+ 202          * ²Î  Êý£ºÎÞ
+ 203          * ·µ»ØÖµ£º¶ÁÈ¡µÄÎ»
+ 204          */
+ 205          bit DS18B20_ReadBit(void)       
+ 206          {
+ 207   1              unsigned int i;
+ 208   1              bit dat;
+ 209   1      
+ 210   1              DS_Data = 0;
+ 211   1              i++;
+ 212   1              DS_Data = 1;
+ 213   1              i++;
+ 214   1              i++;
+ 215   1              dat = DS_Data;
+ 216   1      
+ 217   1              i = 8;
+ 218   1              while(i>0)      i--;
+ 219   1      
+ 220   1              return (dat);
+ 221   1      }
+ 222          
+ 223          /*
+ 224          * ¹¦  ÄÜ£ºDS18B20 ¶ÁÈ¡Ò»¸ö×Ö½Ú
+ 225          * ²Î  Êý£ºÎÞ
+ 226          * ·µ»ØÖµ£º¶ÁÈ¡µÄ×Ö½Ú
+ 227          */
+ 228          uchar DS18B20_ReadByte(void)    
+ 229          {
+ 230   1              unsigned char i,j,dat;
+ 231   1              
+ 232   1              dat=0;
+ 233   1              for(i=1; i<=8; i++)
+ 234   1              {
+ 235   2                      j = DS18B20_ReadBit();
+ 236   2                      dat=(j<<7)|(dat>>1);   //¶Á³öµÄÊý¾Ý×îµÍÎ»ÔÚ×îÇ°Ãæ£¬ÕâÑù¸ÕºÃÒ»¸ö×Ö½ÚÔÚDATÀï
+ 237   2              }
+ 238   1      
+ 239   1              return(dat);
+C51 COMPILER V9.00   MAIN                                                                  09/13/2017 20:47:03 PAGE 5   
+
+ 240   1      }
+ 241          
+ 242          /*
+ 243          * ¹¦  ÄÜ£ºDS18B20 Ð´ÈëÒ»¸ö×Ö½Ú
+ 244          * ²Î  Êý£ºÒªÐ´ÈëµÄ×Ö½Ú
+ 245          * ·µ»ØÖµ£ºÎÞ
+ 246          */
+ 247          void DS18B20_WriteByte(unsigned char dat)       
+ 248          {
+ 249   1              unsigned int i;
+ 250   1              unsigned char j, k;
+ 251   1              bit b;
+ 252   1      
+ 253   1              k = dat;
+ 254   1      
+ 255   1              for(j=1; j<=8; j++)
+ 256   1              {
+ 257   2                      b = k & 0x01;
+ 258   2                      k = k >> 1;
+ 259   2                      if(b)                                   //write 1
+ 260   2                      {
+ 261   3                              DS_Data = 0;
+ 262   3                              i++; i++;
+ 263   3                              DS_Data = 1;
+ 264   3                              i = 8;
+ 265   3                              while(i>0) i--;
+ 266   3                      }
+ 267   2                      else
+ 268   2                      {
+ 269   3                              DS_Data = 0;                    //write 0
+ 270   3                              i = 8;
+ 271   3                              while(i>0)      i--;
+ 272   3                              DS_Data = 1;
+ 273   3                              i++; i++;
+ 274   3                      }
+ 275   2              
+ 276   2              }
+ 277   1      }
+ 278          
+ 279          /*
+ 280          * ¹¦  ÄÜ£ºDS18B20 ¿ªÊ¼ÎÂ¶È×ª»»
+ 281          * ²Î  Êý£ºÎÞ
+ 282          * ·µ»ØÖµ£ºÎÞ
+ 283          */
+ 284          void DS18B20_Change(void)       
+ 285          {
+ 286   1              DS18B20_Reset();
+ 287   1              DelayMs(5);
+ 288   1              DS18B20_WriteByte(0xcc);         // address all drivers on bus
+ 289   1              DS18B20_WriteByte(0x44);        //  initiates a single temperature conversion  
+ 290   1      }
+ 291          
+ 292          /*
+ 293          * ¹¦  ÄÜ£ºDS18B20 µÃµ½ÎÂ¶ÈÖµ
+ 294          * ²Î  Êý£ºÎÞ
+ 295          * ·µ»ØÖµ£ºÎÞ
+ 296          */
+ 297                  
+ 298          int DS18B20_GetTemp()                   //get the temperature
+ 299          {
+ 300   1              float t;
+ 301   1              unsigned char a, b;
+C51 COMPILER V9.00   MAIN                                                                  09/13/2017 20:47:03 PAGE 6   
+
+ 302   1      
+ 303   1              int temp;
+ 304   1              DS18B20_Reset();
+ 305   1              DelayMs(5);
+ 306   1              DS18B20_WriteByte(0xcc);
+ 307   1              DS18B20_WriteByte(0xbe);
+ 308   1              a=DS18B20_ReadByte();
+ 309   1              b=DS18B20_ReadByte();
+ 310   1              
+ 311   1              temp = b;
+ 312   1              temp <<= 8;                             //two byte  compose a int variable
+ 313   1              temp = temp|a;
+ 314   1              t = temp*0.0625;
+ 315   1              temp = t*10+0.5;
+ 316   1              return temp;
+ 317   1      }
+ 318          
+ 319          /******************Òº¾§Ð´Èë************************/
+ 320          void write_1602com(uchar com)//Òº¾§Ð´ÈëÖ¸Áîº¯Êý
+ 321          {
+ 322   1              rs = 0;//ÖÃÎªÐ´ÈëÃüÁî
+ 323   1              P0 = com;//ËÍÈëÊý¾Ý
+ 324   1              delay(1);
+ 325   1              en = 1;//À­¸ßÊ¹ÄÜ¶Ë
+ 326   1              delay(1);
+ 327   1              en = 0;//Íê³É¸ßÂö³å
+ 328   1      }
+ 329          void write_1602dat(uchar dat)
+ 330          {
+ 331   1              rs = 1;//ÖÃÎªÐ´ÈëÊý¾Ý
+ 332   1              P0 = dat;//ËÍÈëÊý¾Ý
+ 333   1              delay(1);
+ 334   1              en = 1;
+ 335   1              delay(1);
+ 336   1              en = 0;
+ 337   1      }
+ 338          /*********************over***********************/
+ 339          /********************ds1302****************************/
+ 340          void write_byte(uchar dat)
+ 341          {
+ 342   1              ACC = dat;
+ 343   1              RST = 1;
+ 344   1              for(a=8; a>0; a--)
+ 345   1              {
+ 346   2                      IO = ACC0;
+ 347   2                      SCLK = 0;
+ 348   2                      SCLK = 1;
+ 349   2                      ACC = ACC>>1;
+ 350   2              }
+ 351   1      }
+ 352          
+ 353          uchar read_byte()
+ 354          {
+ 355   1              RST = 1;
+ 356   1              for(a=8; a>0; a--)
+ 357   1              {
+ 358   2                      ACC7 = IO;
+ 359   2                      SCLK = 1;
+ 360   2                      SCLK = 0;
+ 361   2                      ACC = ACC>>1;
+ 362   2      
+ 363   2              }
+C51 COMPILER V9.00   MAIN                                                                  09/13/2017 20:47:03 PAGE 7   
+
+ 364   1              return (ACC);
+ 365   1      }
+ 366          
+ 367          void write_1302(uchar add, uchar dat)
+ 368          {
+ 369   1              RST = 0;
+ 370   1              SCLK = 0;
+ 371   1              RST = 1;
+ 372   1              write_byte(add);
+ 373   1              write_byte(dat);
+ 374   1              SCLK = 1;
+ 375   1              RST = 0;
+ 376   1      }
+ 377          uchar read_1302(uchar add)
+ 378          {
+ 379   1              uchar temp;
+ 380   1              RST = 0;
+ 381   1              SCLK = 0;
+ 382   1              RST = 1;
+ 383   1              write_byte(add);
+ 384   1              temp = read_byte();
+ 385   1              SCLK = 1;
+ 386   1              RST = 0;
+ 387   1              return(temp);
+ 388   1      }
+ 389          uchar BCD_Decimal(uchar bcd)  //BCDÂë×ª»»
+ 390          {
+ 391   1              uchar Decimal;
+ 392   1      
+ 393   1              Decimal = bcd>>4;
+ 394   1              Decimal = Decimal*10 + (bcd&=0x0F);
+ 395   1              
+ 396   1              return( Decimal );
+ 397   1      }
+ 398          
+ 399          void ds1302_init()
+ 400          {
+ 401   1              RST = 0;
+ 402   1              SCLK = 0;
+ 403   1              write_1302(0x80, miao|0x00);//ÔÊÐíÐ´
+ 404   1      }
+ 405          
+ 406          void write_sfm(uchar add, uchar dat)//Ð´Ê±·ÖÃë
+ 407          {
+ 408   1              uchar gw,sw;
+ 409   1      
+ 410   1              gw = dat % 10;
+ 411   1              sw = dat / 10;
+ 412   1              write_1602com(Row1 + add);
+ 413   1              write_1602dat(0x30 + sw);
+ 414   1              write_1602dat(0x30 + gw);
+ 415   1      }
+ 416          
+ 417          void write_temp(void)
+ 418          {       
+ 419   1              int temp ;
+ 420   1              unsigned char d1, d2, d3;
+ 421   1      
+ 422   1              DS18B20_Change();                                       //¿ªÊ¼×ª»»
+ 423   1              temp = DS18B20_GetTemp();
+ 424   1              d1 = temp / 100;
+ 425   1              d2 = (temp % 100) / 10;
+C51 COMPILER V9.00   MAIN                                                                  09/13/2017 20:47:03 PAGE 8   
+
+ 426   1              d3 = temp % 10; 
+ 427   1              write_1602com(0x80+0x42);
+ 428   1              write_1602dat(0x30 + d1);
+ 429   1              write_1602dat(0x30 + d2);
+ 430   1              write_1602dat('.');
+ 431   1              write_1602dat(0x30 + d3);
+ 432   1              write_1602dat('C');
+ 433   1              tem = 100*d1+10*d2+d3;
+ 434   1      }
+ 435          void writetemp(int temp)
+ 436          {
+ 437   1                      unsigned char d1, d2, d3;
+ 438   1                      d1 = temp / 100;
+ 439   1              d2 = (temp % 100) / 10;
+ 440   1              d3 = temp % 10; 
+ 441   1              write_1602com(0x80+0x42);
+ 442   1              write_1602dat(0x30 + d1);
+ 443   1              write_1602dat(0x30 + d2);
+ 444   1              write_1602dat('.');
+ 445   1              write_1602dat(0x30 + d3);
+ 446   1              write_1602dat('C');
+ 447   1      }
+ 448          
+ 449          void writewarn(uchar warn)
+ 450          {
+ 451   1              write_1602com(0x80+0x40);
+ 452   1              write_1602dat(0x30 + warn);     
+ 453   1      }
+ 454          
+ 455          void write_nyr(uchar add, uchar dat)
+ 456          {
+ 457   1              uchar gw, sw;
+ 458   1              gw = dat % 10;
+ 459   1              sw = dat / 10;
+ 460   1              write_1602com(Row0 + add);
+ 461   1              write_1602dat(0x30 + sw);
+ 462   1              write_1602dat(0x30 + gw);
+ 463   1      }
+ 464          
+ 465          
+ 466          
+ 467          void write_week(uchar week)//Ð´ÐÇÆÚº¯Êý
+ 468          {
+ 469   1              write_1602com(Row0+0x0d);
+ 470   1              switch(week)
+ 471   1              {
+ 472   2                      case 1:write_1602dat('M');//delay(5);
+ 473   2                                 write_1602dat('O');//delay(5);
+ 474   2                                 write_1602dat('N');
+ 475   2                                 break;
+ 476   2                 
+ 477   2                      case 2:write_1602dat('T');//delay(5);
+ 478   2                                 write_1602dat('U');//delay(5);
+ 479   2                                 write_1602dat('E');
+ 480   2                                 break;
+ 481   2                      
+ 482   2                      case 3:write_1602dat('W');//delay(5);
+ 483   2                                 write_1602dat('E');//delay(5);
+ 484   2                                 write_1602dat('D');
+ 485   2                                 break;
+ 486   2                      
+ 487   2                      case 4:write_1602dat('T');//delay(5);
+C51 COMPILER V9.00   MAIN                                                                  09/13/2017 20:47:03 PAGE 9   
+
+ 488   2                                 write_1602dat('H');//delay(5);
+ 489   2                                 write_1602dat('U');
+ 490   2                                 break;
+ 491   2                      
+ 492   2                      case 5:write_1602dat('F');//delay(5);
+ 493   2                                 write_1602dat('R');//delay(5);
+ 494   2                                 write_1602dat('I');
+ 495   2                                 break;
+ 496   2                      
+ 497   2                      case 6:write_1602dat('S');//delay(5);
+ 498   2                                 write_1602dat('T');//delay(5);
+ 499   2                                 write_1602dat('A');
+ 500   2                                 break;
+ 501   2                      
+ 502   2                      case 7:write_1602dat('S');//delay(5);
+ 503   2                                 write_1602dat('U');//delay(5);
+ 504   2                                 write_1602dat('N');
+ 505   2                                 break;
+ 506   2      }
+ 507   1      
+ 508   1      
+ 509   1      
+ 510   1      }
+ 511          void lcd_init()//Òº¾§³õÊ¼»¯º¯Êý
+ 512          {
+ 513   1              wr = 0;
+ 514   1              write_1602com(0x38);//ÉèÖÃÒº¾§¹¤×÷Ä£Ê½
+ 515   1              write_1602com(0x0c);//¿ªÏÔÊ¾²»ÏÔÊ¾¹â±ê
+ 516   1              write_1602com(0x06);//ÕûÆÁ²»ÒÆ¶¯£¬Ö¸Õë¼ÓÒ»
+ 517   1              write_1602com(0x01);
+ 518   1              write_1602com(Row0+2);//×Ö·ûÐ´ÈëµÄÎ»ÖÃ
+ 519   1              
+ 520   1              for(a=0; a<14; a++)
+ 521   1              {
+ 522   2                      write_1602dat(tab1[a]);
+ 523   2              }
+ 524   1              write_1602com(Row1 + 4);
+ 525   1              for(a=0; a<8; a++)
+ 526   1              {
+ 527   2                      write_1602dat(tab2[a]);
+ 528   2              }
+ 529   1      
+ 530   1      }
+ 531          
+ 532          void keyscan()
+ 533          {
+ 534   1              if(K1 == 0)//K1Îª¹¦ÄÜ¼ü
+ 535   1              {
+ 536   2                      delay(5);
+ 537   2                      if(K1==0)
+ 538   2                      {
+ 539   3                              while(!K1);
+ 540   3                              K1_CNT++;
+ 541   3                              if(K1_CNT==9)
+ 542   3                              K1_CNT=1;
+ 543   3                              switch(K1_CNT)
+ 544   3                              {
+ 545   4                                      case 1: TR0 = 0;//¹Ø±Õ¶¨Ê±Æ÷
+ 546   4                                                      write_1602com(Row1+0x0b);//Ð´Èë¹â±êÎ»ÖÃ
+ 547   4                                                      write_1602com(0x0f);//ÉèÖÃ¹â±êÎªÉÁË¸
+ 548   4                                                      temp = (miao)/10*16+(miao)%10;
+ 549   4                                                      write_1302(0x8e,0x00);
+C51 COMPILER V9.00   MAIN                                                                  09/13/2017 20:47:03 PAGE 10  
+
+ 550   4                                                      write_1302(0x80,0x80|temp);//miao
+ 551   4                                                      write_1302(0x8e,0x80);
+ 552   4                                                      break;
+ 553   4                                      case 2: write_1602com(Row1+8);//fen
+ 554   4                                                      break;
+ 555   4                                      case 3: write_1602com(Row1+5);//shi
+ 556   4                                                      break;
+ 557   4                                      case 4: write_1602com(Row0+0x0f);//week
+ 558   4                                                      break;
+ 559   4                                      case 5: write_1602com(Row0+0x0b);//ri
+ 560   4                                                      break;
+ 561   4                                      case 6: write_1602com(Row0+0x08);//yue
+ 562   4                                                      break;
+ 563   4                                      case 7: write_1602com(Row0+0x05);//nian
+ 564   4                                                      break;
+ 565   4                                      case 8: write_1602com(0x0c);//ÉèÖÃ¹â±ê²»ÉÁË¸
+ 566   4                                                      TR0 = 1;//´ò¿ª¶¨Ê±Æ÷
+ 567   4                                                      temp = (miao)/10*16+(miao)%10;
+ 568   4                                                      write_1302(0x8e,0x00);
+ 569   4                                                      write_1302(0x80,0x00|temp);//miao
+ 570   4                                                      write_1302(0x8e,0x80);
+ 571   4                                                      break;          
+ 572   4                              }
+ 573   3                      }
+ 574   2              }
+ 575   1      
+ 576   1              if(K1_CNT==0 ||K1_CNT==8)
+ 577   1              {
+ 578   2                       if(K2 == 0)
+ 579   2                       {
+ 580   3                              delay(5);
+ 581   3                              if(K2 == 0)
+ 582   3                              {
+ 583   4                                      while(!K2);
+ 584   4                                      if(K4cnt!=0) 
+ 585   4                                      {
+ 586   5                                              K4cnt = 0;
+ 587   5                                              warningflag = 0;
+ 588   5                                              write_1602com(0x01);
+ 589   5                                              write_1602com(Row0+2);//×Ö·ûÐ´ÈëµÄÎ»ÖÃ
+ 590   5                                              
+ 591   5                                              for(count=0; count<6; count++)
+ 592   5                                              {
+ 593   6                                                      write_1602dat(clear[count]);
+ 594   6                                              }
+ 595   5                                              DelayMs(1000);
+ 596   5                                              write_1602com(0x01);
+ 597   5                                              write_1602com(Row0+2);//×Ö·ûÐ´ÈëµÄÎ»ÖÃ
+ 598   5                                              
+ 599   5                                              for(count=0; count<14; count++)
+ 600   5                                              {
+ 601   6                                                      write_1602dat(tab1[count]);
+ 602   6                                              }
+ 603   5                                              write_1602com(Row1 + 4);
+ 604   5                                              for(count=0; count<8; count++)
+ 605   5                                              {
+ 606   6                                                      write_1602dat(tab2[count]);
+ 607   6                                              }
+ 608   5                                              TR0 = 1;        
+ 609   5                                      
+ 610   5                                      }
+ 611   4                                      else
+C51 COMPILER V9.00   MAIN                                                                  09/13/2017 20:47:03 PAGE 11  
+
+ 612   4                                      {
+ 613   5                                      beep = 0;
+ 614   5                                      delay(200);
+ 615   5                                      beep = 1;
+ 616   5                                      warningflag = 1;
+ 617   5                                      warning1++;
+ 618   5                                      if(warning1 >5) warning1 = 0;
+ 619   5                                              write24c02(warning0, miao);
+ 620   5                              //      DelayMs(10);
+ 621   5                                      write24c02(warning0+1, fen);
+ 622   5                              //      DelayMs(10);
+ 623   5                                      write24c02(warning0+2, shi);
+ 624   5                              //      DelayMs(10);
+ 625   5                                      write24c02(warning0+3, ri);
+ 626   5                              //      DelayMs(10);
+ 627   5                                      write24c02(warning0+4, yue);
+ 628   5                              //      DelayMs(10);
+ 629   5                                      write24c02(warning0+5, nian);
+ 630   5                              //      DelayMs(10);
+ 631   5                                      write24c02(warning0+6, week);
+ 632   5                              //      DelayMs(10);
+ 633   5                                      write24c02(warning0+7, tem/256);
+ 634   5                              //      DelayMs(10);
+ 635   5                                      write24c02(warning0+8, tem%256);
+ 636   5                                      write24c02(warning0+9, warningflag);
+ 637   5                                      warning0+=10;
+ 638   5                                      }
+ 639   4                              }
+ 640   3                       }
+ 641   2      
+ 642   2      
+ 643   2                       if(K3 == 0)
+ 644   2                       {
+ 645   3                              delay(5);
+ 646   3                              if(K3 == 0)
+ 647   3                              {
+ 648   4                                      while(!K3);
+ 649   4                                      beep = 0;
+ 650   4                                      delay(100);
+ 651   4                                      beep = 1;
+ 652   4                                      delay(100);
+ 653   4                                      beep = 0;
+ 654   4                                      delay(100);
+ 655   4                                      beep = 1;
+ 656   4                                      warningflag = 2;
+ 657   4                                      warning1++;
+ 658   4                                      write24c02(warning0, miao);
+ 659   4                              //      DelayMs(10);
+ 660   4                                      write24c02(warning0+1, fen);
+ 661   4                              //      DelayMs(10);
+ 662   4                                      write24c02(warning0+2, shi);
+ 663   4                              //      DelayMs(10);
+ 664   4                                      write24c02(warning0+3, ri);
+ 665   4                              //      DelayMs(10);
+ 666   4                                      write24c02(warning0+4, yue);
+ 667   4                              //      DelayMs(10);
+ 668   4                                      write24c02(warning0+5, nian);
+ 669   4                              //      DelayMs(10);
+ 670   4                                      write24c02(warning0+6, week);
+ 671   4                              //      DelayMs(10);
+ 672   4                                      write24c02(warning0+7, tem/256);
+ 673   4                                      write24c02(warning0+8, tem%256);
+C51 COMPILER V9.00   MAIN                                                                  09/13/2017 20:47:03 PAGE 12  
+
+ 674   4                                      write24c02(warning0+9, warningflag);
+ 675   4                                      warning0+=10;
+ 676   4                              }
+ 677   3                       }
+ 678   2                       if(warning0 >=25 )     warning0 = 0;
+ 679   2                       if(K4 == 0)
+ 680   2                       {
+ 681   3                              delay(5);
+ 682   3                              if(K4 == 0)
+ 683   3                              {
+ 684   4                                      while(!K4);
+ 685   4                                      
+ 686   4      //                              if(K4cnt >= 5) K4cnt = 0;
+ 687   4      
+ 688   4                                      TR0 = 0;
+ 689   4      //                              write_1602com(Row1+0x0b);//Ð´Èë¹â±êÎ»ÖÃ
+ 690   4      //                              write_1602com(0x0f);//ÉèÖÃ¹â±êÎªÉÁË¸
+ 691   4                                      if(warningflag == 0)
+ 692   4                                      {
+ 693   5                                                      write_1602com(0x01);
+ 694   5                                                      write_1602com(Row0+2);//×Ö·ûÐ´ÈëµÄÎ»ÖÃ
+ 695   5                                                      
+ 696   5                                                      for(count=0; count<7; count++)
+ 697   5                                                      {
+ 698   6                                                              write_1602dat(nothing[count]);
+ 699   6                                                      }
+ 700   5                                                      delay(500);
+ 701   5                                                      
+ 702   5                                                      write_1602com(0x01);
+ 703   5                                                      write_1602com(Row0+2);//×Ö·ûÐ´ÈëµÄÎ»ÖÃ
+ 704   5                                                      
+ 705   5                                                      for(a=0; a<14; a++)
+ 706   5                                                      {
+ 707   6                                                              write_1602dat(tab1[a]);
+ 708   6                                                      }
+ 709   5                                                      write_1602com(Row1 + 4);
+ 710   5                                                      for(a=0; a<8; a++)
+ 711   5                                                      {
+ 712   6                                                              write_1602dat(tab2[a]);
+ 713   6                                                      }
+ 714   5                                                      K4cnt = 0;
+ 715   5                                                      TR0 = 1; 
+ 716   5                                                      
+ 717   5                                      }
+ 718   4                                      else
+ 719   4                                      {
+ 720   5                                              K4cnt++;
+ 721   5                                              if(K4cnt>warning1) 
+ 722   5                                              {
+ 723   6                                                      
+ 724   6                                                      K4cnt = 0;
+ 725   6                                                      write_1602com(0x01);
+ 726   6                                                      write_1602com(Row0+2);//×Ö·ûÐ´ÈëµÄÎ»ÖÃ
+ 727   6                                                      
+ 728   6                                                      for(a=0; a<14; a++)
+ 729   6                                                      {
+ 730   7                                                              write_1602dat(tab1[a]);
+ 731   7                                                      }
+ 732   6                                                      write_1602com(Row1 + 4);
+ 733   6                                                      for(a=0; a<8; a++)
+ 734   6                                                      {
+ 735   7                                                              write_1602dat(tab2[a]);
+C51 COMPILER V9.00   MAIN                                                                  09/13/2017 20:47:03 PAGE 13  
+
+ 736   7                                                      }
+ 737   6                                                      write_1602com(0x80+0x40);
+ 738   6                                                      write_1602dat(' ');
+ 739   6                                                      write_1602com(0x80);
+ 740   6                                                      write_1602dat(' ');
+ 741   6      //                                              write_1602com(Row0);
+ 742   6      //                                              write_1602dat(' ');
+ 743   6      //                                              write_1602com(Row1);
+ 744   6      //                                              write_1602dat(' ');
+ 745   6                                                      TR0 = 1;
+ 746   6                                              }
+ 747   5                                                      write_1602com(0x01);
+ 748   5                                                      write_1602com(Row0+2);//×Ö·ûÐ´ÈëµÄÎ»ÖÃ
+ 749   5                                                      for(count=0; count<14; count++)
+ 750   5                                                      {
+ 751   6                                                              write_1602dat(tab1[count]);
+ 752   6                                                      }
+ 753   5                                                      write_1602com(Row1 + 4);
+ 754   5                                                      for(count=0; count<8; count++)
+ 755   5                                                      {
+ 756   6                                                              write_1602dat(tab2[count]);
+ 757   6                                                      }
+ 758   5                                                      write_1602com(Row0);
+ 759   5                                                      write_1602dat('0'+K4cnt);
+ 760   5                                                      write_sfm(10, read24c02(((K4cnt-1)*10)+0));     //second
+ 761   5                                                      write_sfm(7, read24c02(((K4cnt-1)*10)+1));      //min
+ 762   5                                                      write_sfm(4, read24c02(((K4cnt-1)*10)+2));      //hour
+ 763   5                                                      write_nyr(10, read24c02(((K4cnt-1)*10)+3));
+ 764   5                                                      write_nyr(7, read24c02(((K4cnt-1)*10)+4));
+ 765   5                                                      write_nyr(4, read24c02(((K4cnt-1)*10)+5));
+ 766   5                                                      write_week(read24c02(((K4cnt-1)*10)+6));
+ 767   5                                                      writetemp(read24c02(((K4cnt-1)*10)+7)*256+read24c02(((K4cnt-1)*10)+8));
+ 768   5                                                      writewarn(read24c02(((K4cnt-1)*10)+9));                                 
+ 769   5                                              
+ 770   5                                      }
+ 771   4                                      
+ 772   4      
+ 773   4      
+ 774   4              
+ 775   4                              }
+ 776   3                       }
+ 777   2      
+ 778   2              }
+ 779   1      
+ 780   1              if(K1_CNT!=0)//µ±K1°´ÏÂÒÔÏÂ¡£ÔÙ°´ÒÔÏÂ¼ü²ÅÓÐÐ§
+ 781   1              {
+ 782   2                      if(K2==0)  //ÉÏµ÷¼ü
+ 783   2                      {
+ 784   3                              delay(5);
+ 785   3                              if(K2==0)
+ 786   3                              {
+ 787   4                                      while(!K2);
+ 788   4                                      switch(K1_CNT)
+ 789   4                                      {
+ 790   5                                              case 1: miao++;
+ 791   5                                                              if(miao==60)
+ 792   5                                                                      miao = 0;
+ 793   5                                                              write_sfm(0x0a,miao);//Ð´ÈëÐÂµÄÃëÊý
+ 794   5                                                              temp = (miao)/10*16+(miao)%10;
+ 795   5                                                              write_1302(0x8e,0x00);
+ 796   5                                                              write_1302(0x80,0x80|temp);
+ 797   5                                                              write_1302(0x8e,0x80);
+C51 COMPILER V9.00   MAIN                                                                  09/13/2017 20:47:03 PAGE 14  
+
+ 798   5                                                              write_1602com(Row1+0x0b);//ÒòÎªÉèÖÃÒº¾§µÄÄ£Ê½ÊÇÐ´ÈëÊý¾Ýºó£¬Ö¸Õë×Ô¶¯¼ÓÒ»£¬ÔÚÕâÀïÊÇÐ´»ØÔ­À´µÄÎ»ÖÃ
+ 799   5                                                              break;
+ 800   5                                              case 2: fen++;
+ 801   5                                                              if(fen==60)
+ 802   5                                                                      fen = 0;
+ 803   5                                                              write_sfm(0x07,fen);
+ 804   5                                                              temp=(fen)/10*16+(fen)%10;
+ 805   5                                                              write_1302(0x8e,0x00);
+ 806   5                                                              write_1302(0x82,temp);
+ 807   5                                                              write_1302(0x8e,0x80);
+ 808   5                                                              write_1602com(Row1+8);
+ 809   5                                                              break;
+ 810   5                                              case 3: shi++;
+ 811   5                                                              if(shi==24)
+ 812   5                                                                      shi = 0;
+ 813   5                                                              write_sfm(4,shi);
+ 814   5                                                              temp = (shi)/10*16+(shi)%10;
+ 815   5                                                              write_1302(0x8e,0x00);
+ 816   5                                                              write_1302(0x84,temp);
+ 817   5                                                              write_1302(0x8e,0x80);
+ 818   5                                                              write_1602com(Row1+5);
+ 819   5                                                              break;
+ 820   5                                              case 4: week++;
+ 821   5                                                              if(week==8)
+ 822   5                                                                      week = 0;
+ 823   5                                                              write_week(week);
+ 824   5                                                              temp = (week)/10*16+(week)%10;
+ 825   5                                                              write_1302(0x8e,0x00);
+ 826   5                                                              write_1302(0x8a,temp);
+ 827   5                                                              write_1302(0x8e,0x80);
+ 828   5                                                              write_1602com(Row0+0x0f);
+ 829   5                                                              break;
+ 830   5                                              case 5: ri++;
+ 831   5                                                              if(ri==31)
+ 832   5                                                                      ri = 0;
+ 833   5                                                              write_nyr(10,ri);
+ 834   5                                                              temp = (ri)/10*16+(ri)%10;
+ 835   5                                                              write_1302(0x8e,0x00);
+ 836   5                                                              write_1302(0x86,temp);
+ 837   5                                                              write_1302(0x8e,0x80);
+ 838   5                                                              write_1602com(Row0+11);
+ 839   5                                                              break;
+ 840   5                                              case 6: yue++;
+ 841   5                                                              if(yue==13)
+ 842   5                                                                      yue = 1;
+ 843   5                                                              write_nyr(7,yue);
+ 844   5                                                              temp = (yue)/10*16+(yue)%10;
+ 845   5                                                              write_1302(0x8e,0x00);
+ 846   5                                                              write_1302(0x88,temp);
+ 847   5                                                              write_1302(0x8e,0x80);
+ 848   5                                                              write_1602com(Row0+8);
+ 849   5                                                              break;
+ 850   5                                              case 7: nian++;
+ 851   5                                                              temp = (nian)/10*16+(nian)%10;
+ 852   5                                                              write_nyr(4,nian);
+ 853   5                                                              write_1302(0x8e,0x00);
+ 854   5                                                              write_1302(0x8c,temp);
+ 855   5                                                              write_1302(0x8e,0x80); 
+ 856   5                                                              write_1602com(Row0+5);
+ 857   5                                                              break;
+ 858   5                              
+ 859   5      
+C51 COMPILER V9.00   MAIN                                                                  09/13/2017 20:47:03 PAGE 15  
+
+ 860   5                                      }
+ 861   4      
+ 862   4                              }
+ 863   3      
+ 864   3                      }
+ 865   2                      if(K3==0)
+ 866   2                      {
+ 867   3                              delay(5);
+ 868   3                              if(K3==0)
+ 869   3                              {
+ 870   4                                      while(!K3);
+ 871   4                                      switch(K1_CNT)
+ 872   4                                      {
+ 873   5                                              case 1: miao--;
+ 874   5                                                              if(miao==-1)
+ 875   5                                                                      miao = 59;
+ 876   5                                                              write_sfm(0x0a,miao);//Ð´ÈëÐÂµÄÃëÊý
+ 877   5                                                              write_1602com(Row1+0x0b);//ÒòÎªÉèÖÃÒº¾§µÄÄ£Ê½ÊÇÐ´ÈëÊý¾Ýºó£¬Ö¸Õë×Ô¶¯¼ÓÒ»£¬ÔÚÕâÀïÊÇÐ´»ØÔ­À´µÄÎ»ÖÃ
+ 878   5                                                              break;
+ 879   5                                              case 2: fen--;
+ 880   5                                                              if(fen==-1)
+ 881   5                                                                      fen = 59;
+ 882   5                                                              write_sfm(7,fen);
+ 883   5                                                              temp = (fen)/10*16+(fen)%10;
+ 884   5                                                              write_1302(0x8e,0x00);
+ 885   5                                                              write_1302(0x82,temp);
+ 886   5                                                              write_1302(0x8e,0x80);
+ 887   5                                                              write_1602com(Row1+8);
+ 888   5                                                              break;
+ 889   5                                              case 3: shi--;
+ 890   5                                                              if(shi==-1)
+ 891   5                                                                      shi = 23;
+ 892   5                                                              write_sfm(4,shi);
+ 893   5                                                              temp = (shi)/10*16+(shi)%10;
+ 894   5                                                              write_1302(0x8e,0x00);
+ 895   5                                                              write_1302(0x84,temp);
+ 896   5                                                              write_1302(0x8e,0x80);
+ 897   5                                                              write_1602com(Row1+5);
+ 898   5                                                              break;
+ 899   5                                              case 4: week--;
+ 900   5                                                              if(week==-1)
+ 901   5                                                                      week = 7;
+ 902   5                                                              write_week(week);
+ 903   5                                                              temp = (week)/10*16+(week)%10;
+ 904   5                                                              write_1302(0x8e,0x00);
+ 905   5                                                              write_1302(0x8a,temp);
+ 906   5                                                              write_1302(0x8e,0x80);
+ 907   5                                                      //      write_week(week);
+ 908   5                                                              write_1602com(Row0+0x0f);
+ 909   5                                                              break;
+ 910   5                                              case 5: ri--;
+ 911   5                                                              if(ri==-1)
+ 912   5                                                                      ri = 30;
+ 913   5                                                              write_nyr(10,ri);
+ 914   5                                                              temp = (ri)/10*16+(ri)%10;
+ 915   5                                                              write_1302(0x8e,0x00);
+ 916   5                                                              write_1302(0x86,temp);
+ 917   5                                                              write_1302(0x8e,0x80);
+ 918   5                                                              write_1602com(Row0+11);
+ 919   5                                                              break;
+ 920   5                                              case 6: yue--;
+ 921   5                                                              if(yue==-1)
+C51 COMPILER V9.00   MAIN                                                                  09/13/2017 20:47:03 PAGE 16  
+
+ 922   5                                                                      yue = 12;
+ 923   5                                                              write_nyr(7,yue);
+ 924   5                                                              temp = (yue)/10*16+(yue)%10;
+ 925   5                                                              write_1302(0x8e,0x00);
+ 926   5                                                              write_1302(0x88,temp);
+ 927   5                                                              write_1302(0x8e,0x80);
+ 928   5                                                              write_1602com(Row0+8);
+ 929   5                                                              break;  
+ 930   5                                              case 7: nian--;
+ 931   5                                                              if(nian==-1)
+ 932   5                                                                      nian = 99;
+ 933   5                                                              temp = (nian)/10*16+(nian)%10;
+ 934   5                                                              write_nyr(4,nian);
+ 935   5                                                              write_1302(0x8e,0x00);
+ 936   5                                                              write_1302(0x8c,temp);
+ 937   5                                                              write_1302(0x8e,0x80);
+ 938   5                                                              
+ 939   5                                                              write_1602com(Row0+5);
+ 940   5                                                              break;
+ 941   5                              
+ 942   5                                      }
+ 943   4                              }
+ 944   3                      }
+ 945   2              }
+ 946   1      }
+ 947          
+ 948          void Timer0_init()
+ 949          {
+ 950   1              TMOD = 0x11;
+ 951   1              TH0  = 0;
+ 952   1              TL0  = 0;
+ 953   1              EA   = 1;
+ 954   1              ET0  = 1;
+ 955   1              TR0  = 1;
+ 956   1      }
+ 957          
+ 958          
+ 959          void main()
+ 960          {
+ 961   1              init();
+ 962   1              lcd_init();
+ 963   1              ds1302_init();
+ 964   1              Timer0_init();
+ 965   1              write_1302(0x8e,0x00);
+ 966   1              write_1302(0x8c,(17)/10*16+(17)%10);
+ 967   1              write_1302(0x8e,0x80);
+ 968   1              delay1(50);
+ 969   1          write_1302(0x8e,0x00);
+ 970   1              write_1302(0x8a,4);
+ 971   1              write_1302(0x8e,0x80);          
+ 972   1              while(1)
+ 973   1              {
+ 974   2                      keyscan();
+ 975   2                      
+ 976   2              }
+ 977   1      }
+ 978          
+ 979          void timer0() interrupt 1
+ 980          {
+ 981   1              cnt++;
+ 982   1              if(cnt >= 10)
+ 983   1              {
+C51 COMPILER V9.00   MAIN                                                                  09/13/2017 20:47:03 PAGE 17  
+
+ 984   2                      cnt = 0;
+ 985   2                      write_temp();
+ 986   2              }
+ 987   1      
+ 988   1              miao = BCD_Decimal(read_1302(0x81));
+ 989   1              fen  = BCD_Decimal(read_1302(0x83));
+ 990   1              shi  = BCD_Decimal(read_1302(0x85));
+ 991   1              ri   = BCD_Decimal(read_1302(0x87));
+ 992   1              yue  = BCD_Decimal(read_1302(0x89));
+ 993   1              nian = BCD_Decimal(read_1302(0x8d));
+ 994   1              week = BCD_Decimal(read_1302(0x8b));
+ 995   1      
+ 996   1              
+ 997   1                      
+ 998   1                              
+ 999   1              write_sfm(10, miao);
+1000   1              write_sfm(7, fen);
+1001   1              write_sfm(4, shi);
+1002   1              write_nyr(10, ri);
+1003   1              write_nyr(7, yue);
+1004   1              write_nyr(4, nian);
+1005   1              write_week( week );
+1006   1      
+1007   1      
+1008   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   3265    ----
+   CONSTANT SIZE    =     39    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     20       8
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----       2
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,4 @@
+"..\out\STARTUP.obj",
+"..\out\main.obj" 
+TO "..\out\DS1302 LCD1602œ‘ æ" 
+PRINT("..\listing\DS1302 LCD1602œ‘ æ.m51") RAMSIZE(256) 

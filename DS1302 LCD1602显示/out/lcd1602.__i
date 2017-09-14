@@ -1,0 +1,1 @@
+"..\user\lcd1602.c" BROWSE DEBUG OBJECTEXTEND PRINT(..\listing\lcd1602.lst) OBJECT(..\out\lcd1602.obj)
